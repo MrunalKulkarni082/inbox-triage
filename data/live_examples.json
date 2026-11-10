@@ -1,0 +1,74 @@
+[
+  {
+    "title": "Internship enquiry (complete)",
+    "shows": "Classified as internship; name, institute, skills, graduation year, hours and phone extracted; reply asks only for a project walkthrough.",
+    "sender_name": "Riya Deshmukh",
+    "sender_email": "riya.deshmukh@lakeview.edu",
+    "subject": "Remote internship in data and automation",
+    "attachments": "Riya_Deshmukh_CV.pdf",
+    "body": "Hello Team,\n\nI am a second-year M.Sc Data Science student at Lakeview University and I expect to graduate in 2027. I am looking for a remote internship in workflow automation.\n\nI have worked with Python, SQL, Power BI and Excel, and recently built a small Zapier flow that logs form responses to a sheet. I can give 12 hours a week.\n\nMy CV is attached.\n\nBest regards,\nRiya Deshmukh\nLakeview University\nPhone: +91 98201 45678"
+  },
+  {
+    "title": "Internship enquiry with problems",
+    "shows": "Validation catches a phone number with 9 digits and a graduation year in the past; both appear as warnings.",
+    "sender_name": "Kabir Malhotra",
+    "sender_email": "kabir.m.2001@gmail.com",
+    "subject": "Internship opportunity?",
+    "attachments": "",
+    "body": "Hi,\n\nI graduated in 2023 with a B.Tech and I am looking for an internship in data analytics. I know Python and Tableau. Do you have any openings?\n\nThanks,\nKabir Malhotra\nPhone: +91 99876 5432"
+  },
+  {
+    "title": "Sales lead with budget",
+    "shows": "Classified as a sales lead; organisation, budget and the actual request are extracted; the reply proposes a discovery call.",
+    "sender_name": "Anita Fernandes",
+    "sender_email": "anita@brightminds-academy.in",
+    "subject": "Automating fee reminders for our coaching centre",
+    "attachments": "",
+    "body": "Hello,\n\nWe are a coaching academy with about 600 students. Every month our office staff spend three days sending fee reminders on WhatsApp and updating an Excel sheet by hand.\n\nWe would like to automate this process. Could you send a quote? Our budget is around ₹1.5 lakh and we hope to have it running by January.\n\nRegards,\nAnita Fernandes\nDirector, BrightMinds Academy\nPhone: +91 97300 11223"
+  },
+  {
+    "title": "Support request with order ID",
+    "shows": "Classified as support; the order ID is extracted from the subject and quoted back in the reply.",
+    "sender_name": "Rahul Bansal",
+    "sender_email": "rahul.bansal@freshkart.in",
+    "subject": "Invoice sync failing - ORD-88812",
+    "attachments": "",
+    "body": "Hi Support,\n\nSince Monday the invoice sync between our store and Tally has stopped working. The dashboard shows an error saying the access token expired. Please help, this is urgent as month-end is close.\n\nThanks,\nRahul Bansal\nFreshKart Retail Pvt Ltd\nPhone: +91 98111 76543"
+  },
+  {
+    "title": "Support request missing order ID",
+    "shows": "Blocking error: a support request without an order or ticket number goes to 'needs attention', and the reply asks for the number.",
+    "sender_name": "Sneha Pillai",
+    "sender_email": "sneha@urbanbloom.in",
+    "subject": "Chatbot not responding",
+    "attachments": "",
+    "body": "Hello,\n\nThe chatbot on our website has not been responding to customers since this morning. Please fix it asap.\n\nSneha"
+  },
+  {
+    "title": "Phishing email",
+    "shows": "Classified as spam and discarded: no record needs action and no reply is drafted.",
+    "sender_name": "IT Helpdesk",
+    "sender_email": "helpdesk@secure-mail-check.example",
+    "subject": "Urgent: verify your account",
+    "attachments": "",
+    "body": "Dear user,\n\nWe detected unusual activity. Verify your account password within 12 hours or your mailbox will be closed. Click here to confirm: http://secure-mail-check.example/verify\n\nIT Helpdesk"
+  },
+  {
+    "title": "Vague email",
+    "shows": "No strong signals, so the system refuses to guess: 'unknown', sent to a person, and the draft asks what they need.",
+    "sender_name": "Nikhil",
+    "sender_email": "nikhil.r@gmail.com",
+    "subject": "Quick question",
+    "attachments": "",
+    "body": "Hey, can we talk sometime this week?"
+  },
+  {
+    "title": "Vendor pitch",
+    "shows": "Classified as a vendor pitch; a polite decline is drafted.",
+    "sender_name": "Growth Team",
+    "sender_email": "hello@topranked-seo.example",
+    "subject": "Get more leads with SEO",
+    "attachments": "",
+    "body": "Hi,\n\nOur agency offers SEO and lead generation services. We can help you rank on Google page 1 with high-quality backlinks. Special discount for new clients this month.\n\nReply for our rate card.\n\nGrowth Team"
+  }
+]

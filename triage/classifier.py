@@ -57,7 +57,9 @@ SIGNALS: dict[Category, list[Signal]] = {
         _s("mentions a timeline", r"\b(by (q[1-4]|next month|january|february|march|april|may|june|july|august|september|october|november|december))\b", 1.0),
     ],
     Category.SUPPORT: [
-        _s("reports something broken", r"\b(not working|broken|error|bug|crash\w*|fail\w*|stopped|issue)\b", 3.0),
+        _s("reports something broken",
+           r"\b(not working|isn'?t working|doesn'?t work|not (been )?respond\w*|not loading|broken|error|bug|"
+           r"crash\w*|fail\w*|stopped|issue|is down|went down)\b", 3.0),
         _s("asks for help / urgent", r"\b(urgent|asap|help|please fix|support)\b", 1.5),
         _s("mentions an order / ticket ID", r"\b(ord|inv|tkt|ticket)[- #]?\d{3,}\b|#\d{4,}", 2.0),
         _s("existing customer language", r"\b(your (tool|system|workflow|bot|integration)|we (bought|purchased|use)|since (the|your) (update|deployment))\b", 2.0),

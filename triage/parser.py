@@ -97,6 +97,28 @@ def parse_bytes(data: bytes, source_file: str = "<memory>") -> RawEmail:
     )
 
 
+def from_text(sender_name: str, sender_email: str, subject: str, body: str,
+              attachments: list[str] | None = None, label: str = "typed-in email") -> RawEmail:
+    """Build a RawEmail from text typed into a form.
+
+    It is turned into a real email message first and then parsed by the same
+    code as .eml files, so typed-in emails go through exactly the same path.
+    """
+    from email.message import EmailMessage
+    from email.utils import format_datetime
+    from datetime import datetime
+
+    msg = EmailMessage()
+    msg["From"] = f"{sender_name} <{sender_email}>" if sender_name else sender_email
+    msg["To"] = "inbox@example.com"
+    msg["Subject"] = subject
+    msg["Date"] = format_datetime(datetime.now().astimezone())
+    msg.set_content(body or "")
+    for name in attachments or []:
+        msg.add_attachment(b"(placeholder)", maintype="application", subtype="octet-stream", filename=name)
+    return parse_bytes(bytes(msg), source_file=label)
+
+
 def parse_file(path: Path) -> RawEmail:
     return parse_bytes(path.read_bytes(), source_file=path.name)
 

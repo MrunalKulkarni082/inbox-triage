@@ -13,7 +13,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from triage import ai_classifier, pipeline
+from triage import ai_classifier, parser, pipeline
 from triage.models import Status
 from triage.storage import Store
 
@@ -55,13 +55,20 @@ st.session_state.setdefault("reports", [])
 st.session_state.setdefault("decisions", {})
 
 # ---- sidebar ---------------------------------------------------------------
+LIVE_MODE = "✍️ Check one email live"
+INBOX_MODE = "📥 Process a whole inbox"
+
 with st.sidebar:
-    st.header("Run the workflow")
-    source = st.radio("Inbox", ["Sample inbox (30 emails)", "Upload my own .eml files"])
-    uploads = None
-    if source.startswith("Upload"):
-        uploads = st.file_uploader("Drop .eml files", type=["eml"], accept_multiple_files=True)
-        st.caption("Files are processed in memory for this session only.")
+    mode = st.radio("Mode", [LIVE_MODE, INBOX_MODE])
+    st.divider()
+    run_clicked = False
+    source, uploads = "", None
+    if mode == INBOX_MODE:
+        st.header("Run the workflow")
+        source = st.radio("Inbox", ["Sample inbox (30 emails)", "Upload my own .eml files"])
+        if source.startswith("Upload"):
+            uploads = st.file_uploader("Drop .eml files", type=["eml"], accept_multiple_files=True)
+            st.caption("Files are processed in memory for this session only.")
 
     ai_ready = ai_classifier.is_available()
     use_ai = st.toggle("Use AI classification (Claude)", value=False, disabled=not ai_ready,
@@ -69,11 +76,12 @@ with st.sidebar:
     if not ai_ready:
         st.caption("AI is off: no API key configured. The rule-based classifier is used.")
 
-    run_clicked = st.button("▶ Run workflow", type="primary", width="stretch")
+    if mode == INBOX_MODE:
+        run_clicked = st.button("▶ Run workflow", type="primary", width="stretch")
     st.button("Reset database", on_click=reset, width="stretch")
     st.divider()
-    st.caption("Tip: press Run twice. The second run finds every email already "
-               "processed and creates no duplicates - the pipeline is idempotent.")
+    st.caption("Tip: run the same email or inbox twice. The second time it is recognised "
+               "as already processed and no duplicate record is created.")
 
 if run_clicked:
     store = get_store()
@@ -113,6 +121,127 @@ st.graphviz_chart(
     """
 )
 
+def show_trace(r) -> None:
+    """Show one processed email stage by stage."""
+    st.markdown("#### 1 · Parse")
+    st.json({"from": f"{r.raw.sender_name} <{r.raw.sender_email}>", "subject": r.raw.subject,
+             "received_at": str(r.raw.received_at), "attachments": r.raw.attachments,
+             "fingerprint": r.raw.fingerprint[:16] + "…"}, expanded=True)
+    with st.expander("Body text as parsed"):
+        st.text(r.raw.body or "(empty)")
+
+    st.markdown("#### 2 · Classify")
+    c = r.classification
+    st.markdown(f"**{c.category.value}** with **{c.confidence:.0%}** confidence (method: `{c.method}`)")
+    if c.scores:
+        st.bar_chart(pd.Series(c.scores, name="signal score"), horizontal=True)
+    st.markdown("**Why:**\n" + ("\n".join(f"- {x}" for x in c.reasons) if c.reasons else "—"))
+    st.caption("Confidence = winning score ÷ (all scores + 2). Below 55% the email is marked "
+               "'unknown' and sent to a person.")
+
+    st.markdown("#### 3 · Extract")
+    st.json({k: v for k, v in r.fields.model_dump().items() if v not in (None, [], "")} or {"(nothing found)": None},
+            expanded=True)
+
+    st.markdown("#### 4 · Validate")
+    if r.issues:
+        for i in r.issues:
+            st.markdown(f"{SEVERITY_ICON[i.severity.value]} **{i.severity.value}** · `{i.field}` — {i.message}")
+    else:
+        st.success("No issues found.")
+
+    st.markdown("#### 5 · Route")
+    st.markdown(f"Outcome: **{STATUS_LABEL[r.status.value]}**")
+
+    st.markdown("#### 6 · Draft reply (waits for a person to approve)")
+    if r.draft_reply:
+        st.code(r.draft_reply, language=None)
+    else:
+        st.caption("No draft: spam and duplicates are not replied to.")
+
+
+# ---- live mode: type or paste one email ------------------------------------
+FIELDS = ("live_name", "live_email", "live_subject", "live_attach", "live_body")
+EXAMPLES = json.loads((ROOT / "data" / "live_examples.json").read_text(encoding="utf-8"))
+
+
+def load_example(ex: dict) -> None:
+    st.session_state.update({"live_name": ex["sender_name"], "live_email": ex["sender_email"],
+                             "live_subject": ex["subject"], "live_attach": ex["attachments"],
+                             "live_body": ex["body"]})
+    st.session_state.pop("live_result", None)
+
+
+def clear_form() -> None:
+    for k in FIELDS:
+        st.session_state[k] = ""
+    st.session_state.pop("live_result", None)
+
+
+if mode == LIVE_MODE:
+    for k in FIELDS:
+        st.session_state.setdefault(k, "")
+    st.subheader("Check one email live")
+    st.markdown("Type or paste any email below, or load one of the examples, then press **Check this email**. "
+                "It goes through exactly the same pipeline as a full inbox.")
+
+    form_col, ex_col = st.columns([3, 2], gap="large")
+    with ex_col:
+        st.markdown("**Examples to try**")
+        st.caption("New emails, not part of the 30-email sample set the rules were tuned on.")
+        titles = [e["title"] for e in EXAMPLES]
+        pick = st.selectbox("Example", titles, label_visibility="collapsed")
+        ex = EXAMPLES[titles.index(pick)]
+        st.button("⬅ Load into the form", on_click=load_example, args=(ex,), width="stretch")
+        st.markdown(f"*What it shows:* {ex['shows']}")
+        st.caption("Or copy the text (icon at the top right of the box) and paste or edit it yourself:")
+        st.code(f"From: {ex['sender_name']} <{ex['sender_email']}>\nSubject: {ex['subject']}\n\n{ex['body']}",
+                language=None)
+
+    with form_col:
+        a, b = st.columns(2)
+        a.text_input("Sender name", key="live_name", placeholder="Asha Kumar")
+        b.text_input("Sender email", key="live_email", placeholder="asha@example.com")
+        st.text_input("Subject", key="live_subject", placeholder="Internship enquiry")
+        st.text_area("Email body", key="live_body", height=280,
+                     placeholder="Hello,\n\nI am a final-year student looking for an internship...")
+        st.text_input("Attachment file names (optional, comma-separated)", key="live_attach",
+                      placeholder="My_CV.pdf")
+        c1, c2 = st.columns([2, 1])
+        check = c1.button("▶ Check this email", type="primary", width="stretch")
+        c2.button("Clear", on_click=clear_form, width="stretch")
+
+    if check:
+        body, subject = st.session_state.live_body.strip(), st.session_state.live_subject.strip()
+        sender = st.session_state.live_email.strip()
+        if not body and not subject:
+            st.error("Enter at least a subject or a body.")
+        elif sender and "@" not in sender:
+            st.error("The sender email needs an @.")
+        else:
+            raw = parser.from_text(
+                st.session_state.live_name.strip(), sender or "unknown@unknown.invalid", subject, body,
+                [x.strip() for x in st.session_state.live_attach.split(",") if x.strip()],
+            )
+            rep = pipeline.run_single(raw, get_store(), use_ai=use_ai)
+            if rep.failures:
+                st.error("Could not process this email: " + "; ".join(rep.failures))
+            else:
+                st.session_state.live_result = (rep.results[0], rep.duration_ms)
+
+    if "live_result" in st.session_state:
+        r, ms = st.session_state.live_result
+        st.divider()
+        st.markdown(f"### Result: {STATUS_LABEL[r.status.value]} · **{r.classification.category.value}** "
+                    f"({r.classification.confidence:.0%}) · {len(r.issues)} issue(s) · {ms} ms")
+        if r.status == Status.DUPLICATE:
+            st.info("This exact email was already processed in this session, so no new record was created. "
+                    "Change any word to make it a new email.")
+        show_trace(r)
+    st.stop()
+
+
+# ---- inbox mode ------------------------------------------------------------
 report = st.session_state.get("report")
 if report is None:
     st.info("Choose an inbox in the sidebar and press **Run workflow** to start.")
@@ -205,40 +334,7 @@ with tabs[2]:
     pick = st.selectbox("Email", names)
     r = next(x for x in report.results if x.raw.source_file == pick)
 
-    st.markdown("#### 1 · Parse")
-    st.json({"from": f"{r.raw.sender_name} <{r.raw.sender_email}>", "subject": r.raw.subject,
-             "received_at": str(r.raw.received_at), "attachments": r.raw.attachments,
-             "fingerprint": r.raw.fingerprint[:16] + "…"}, expanded=True)
-    with st.expander("Body text"):
-        st.text(r.raw.body or "(empty)")
-
-    st.markdown("#### 2 · Classify")
-    c = r.classification
-    st.markdown(f"**{c.category.value}** with **{c.confidence:.0%}** confidence (method: `{c.method}`)")
-    if c.scores:
-        st.bar_chart(pd.Series(c.scores, name="signal score"), horizontal=True)
-    st.markdown("Why: " + ("; ".join(c.reasons) if c.reasons else "—"))
-    st.caption("Confidence = winning score ÷ (all scores + 2). Below 55% the email is marked "
-               "'unknown' and sent to a person.")
-
-    st.markdown("#### 3 · Extract")
-    st.json(r.fields.model_dump(), expanded=True)
-
-    st.markdown("#### 4 · Validate")
-    if r.issues:
-        for i in r.issues:
-            st.markdown(f"{SEVERITY_ICON[i.severity.value]} **{i.severity.value}** · `{i.field}` — {i.message}")
-    else:
-        st.success("No issues found.")
-
-    st.markdown("#### 5 · Route")
-    st.markdown(f"Outcome: **{STATUS_LABEL[r.status.value]}**")
-
-    st.markdown("#### 6 · Draft")
-    if r.draft_reply:
-        st.code(r.draft_reply, language=None)
-    else:
-        st.caption("No draft: spam and duplicates are not replied to.")
+    show_trace(r)
 
 # ---- Exceptions --------------------------------------------------------------------
 with tabs[3]:

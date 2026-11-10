@@ -14,7 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 STLITE = "1.11.0"
 
-PATTERNS = ["app.py", "triage/*.py", "templates/*.j2", "data/sample_labels.csv", "data/sample_inbox/*.eml"]
+PATTERNS = ["app.py", "triage/*.py", "templates/*.j2", "data/sample_labels.csv", "data/live_examples.json","data/sample_inbox/*.eml"]
 
 TEMPLATE = """<!doctype html>
 <html lang="en">

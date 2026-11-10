@@ -6,12 +6,17 @@ It reads incoming emails, works out what each one is (internship enquiry, sales 
 
 **▶ Live demo: <https://mrunalkulkarni082.github.io/inbox-triage/>**: runs entirely in your browser, with no sign-up. The first load takes about 20–40 seconds while Python starts up.
 
+The demo has two modes:
+
+- **✍️ Check one email live.** Type or paste any email and see every stage: classification with its reasons, extracted fields, validation issues, the outcome and the draft reply. Eight ready-made examples (`data/live_examples.json`) can be loaded with one click or copied. They are **new** emails, not the 30 the rules were tuned on. Checking the same email twice shows duplicate detection.
+- **📥 Process a whole inbox.** Run the 30-email sample inbox, or upload your own `.eml` files, and use the review queue, exceptions report, accuracy check, SQL tab and run log.
+
 | | |
 |---|---|
 | **Language** | Python 3.12 |
 | **Stack** | Pydantic · SQLite (SQL) · pandas · Jinja2 · Streamlit · pytest · optional Claude API |
 | **Sample data** | 30 fictional emails, deliberately messy |
-| **Tests** | 53 automated tests (unit + end-to-end) |
+| **Tests** | 63 automated tests (unit + end-to-end) |
 | **Run time** | ~0.1 s for 30 emails on a laptop |
 
 ---
@@ -361,12 +366,14 @@ Each email has a hand-written expected answer in `data/sample_labels.csv`.
 
 **Honest caveat:** the classification rules were written and tuned while looking at these same 30 emails, so 100% here is **training accuracy, not real-world accuracy**. During tuning, for example, the outsourcing-agency pitch (`17`) was first classified as `unknown`, because "automation" and "$18 per hour" looked like a sales lead. I added a white-label/agency signal and stopped `$` amounts counting as a client budget. On genuinely new emails, accuracy would be lower. The right next step is to label a fresh batch of real emails and measure on those (see [section 12](#12-what-i-would-build-next)).
 
+**A real miss, found by testing on new text.** When writing the eight live-demo examples, one new support email ("the chatbot … has not been responding") came out `unknown`, because the support rules knew "not working" and "stopped" but not "not responding". It failed safely, since it was routed to a person, but it was a genuine vocabulary gap. I added common phrases for something being broken ("not responding", "isn't working", "is down", …) and a test for it. This is exactly why rules need measuring on unseen email.
+
 Three emails are deliberately labelled `unknown` because a person *should* decide them, for example `23`, a student asking for workshop pricing *and* internships. Sending genuinely ambiguous emails to a person is the correct behaviour, not a failure.
 
 ## 8. How it is tested
 
 ```bash
-pytest -q        # 53 passed in ~1.5 s
+pytest -q        # 63 passed in ~1.5 s
 ```
 
 | Test file | What it checks |
@@ -450,7 +457,7 @@ inbox-triage/
 │   └── sample_labels.csv          Expected category and outcome for each
 ├── scripts/
 │   └── generate_sample_inbox.py   Rebuilds the sample inbox
-└── tests/                         53 tests (unit + end-to-end)
+└── tests/                         63 tests (unit + end-to-end)
 ```
 
 About 2,400 lines of Python, including tests and sample data.
@@ -473,19 +480,20 @@ To change the company name in reply sign-offs, set the `TRIAGE_ORG_NAME` environ
 
 ## 15. Walkthrough script for a demo call
 
-A suggested 5-minute flow:
+A suggested 6-minute flow:
 
 1. **The problem (30 s).** "A shared inbox gets five kinds of email. Someone reads, sorts, copies details and replies by hand. I automated the repetitive part and kept the judgement with a person."
-2. **Run it (30 s).** Press **Run workflow**: 30 emails in about a tenth of a second. Point at the outcome counts.
-3. **One email end to end (90 s).** In **Step-by-step inspector**, choose `01_internship_complete.eml`: the signals and scores, the confidence formula, the extracted fields, no issues, the draft. Then choose `23_ambiguous_student_quote.eml` and show why it was sent to a person.
-4. **Data quality (60 s).** Open **Exceptions**: the 9-digit phone number, the graduate applying as a student, the support email with no order number, the forwarded thread linked to the original order.
-5. **Human in the loop (30 s).** In **Review queue**, edit and approve a draft; show it in the `reviews` table in **Database**.
-6. **Reliability (30 s).** Press **Run** again: 0 new records. Mention the 53 tests, the corrupt-file test and the AI fallback.
-7. **Honesty and next steps (30 s).** "Accuracy is 100% on the sample, but I tuned the rules on it, so the real test is unseen email. Next I would measure on real mail, then connect a mailbox and add follow-ups."
+2. **Live check (60 s).** In **✍️ Check one email live**, paste an email, or better, let the interviewer dictate one. Press **Check this email** and walk down the result: category and reasons, fields, issues, draft. Press it again to show duplicate detection.
+3. **Run the inbox (30 s).** Switch to **📥 Process a whole inbox** and press **Run workflow**: 30 emails in about a tenth of a second. Point at the outcome counts.
+4. **One email end to end (90 s).** In **Step-by-step inspector**, choose `01_internship_complete.eml`: the signals and scores, the confidence formula, the extracted fields, no issues, the draft. Then choose `23_ambiguous_student_quote.eml` and show why it was sent to a person.
+5. **Data quality (60 s).** Open **Exceptions**: the 9-digit phone number, the graduate applying as a student, the support email with no order number, the forwarded thread linked to the original order.
+6. **Human in the loop (30 s).** In **Review queue**, edit and approve a draft; show it in the `reviews` table in **Database**.
+7. **Reliability (30 s).** Press **Run** again: 0 new records. Mention the 63 tests, the corrupt-file test and the AI fallback.
+8. **Honesty and next steps (30 s).** "Accuracy is 100% on the sample, but I tuned the rules on it, so the real test is unseen email. Next I would measure on real mail, then connect a mailbox and add follow-ups."
 
 Likely questions, with short answers:
 
 - *Why not just use ChatGPT/Claude for everything?* Cost, speed, repeatability and explainability. The AI is available as an optional step, and the rules are the fallback, so the system still works when the API does not.
 - *How would this run for a real client?* A mailbox connector instead of `.eml` files, a scheduler, PostgreSQL instead of SQLite, and drafts saved into the real mailbox.
-- *How do you know it works?* 53 tests, labelled expected answers for every sample email, and an end-to-end test that compares every category and outcome against those labels.
+- *How do you know it works?* 63 tests, labelled expected answers for every sample email, and an end-to-end test that compares every category and outcome against those labels.
 - *What was hardest?* Deciding what counts as a problem versus missing-but-fine (errors vs. warnings), and stopping the extractor from guessing; for example, dates looked like phone numbers until a specific rule and test were added.
