@@ -196,7 +196,7 @@ if mode == LIVE_MODE:
         st.markdown(f"*What it shows:* {ex['shows']}")
         st.caption("Or copy the text (icon at the top right of the box) and paste or edit it yourself:")
         st.code(f"From: {ex['sender_name']} <{ex['sender_email']}>\nSubject: {ex['subject']}\n\n{ex['body']}",
-                language=None)
+                language=None, wrap_lines=True)
 
     with form_col:
         a, b = st.columns(2)
