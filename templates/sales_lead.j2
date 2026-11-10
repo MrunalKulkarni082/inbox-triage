@@ -1,0 +1,23 @@
+Hi {{ first_name }},
+
+Thanks for getting in touch{% if f.organisation %} on behalf of {{ f.organisation }}{% endif %}. We would be glad to look at how to automate this.
+
+{% if f.request_summary %}
+From your note, the main need is: "{{ f.request_summary }}"
+{% endif %}
+
+The best next step is a 30-minute discovery call, where we map the current process and estimate effort.
+{% if "budget" in missing %}
+It would also help to know a rough budget range and timeline.
+{% elif f.budget %}
+We have noted the budget you mentioned ({{ f.budget }}).
+{% endif %}
+{% if "phone" in missing %}
+Please share a phone number and a couple of time slots that suit you.
+{% else %}
+Please share a couple of time slots that suit you.
+{% endif %}
+
+Best regards,
+[Your name]
+{{ org_name }}

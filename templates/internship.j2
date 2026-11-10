@@ -1,0 +1,24 @@
+Hi {{ first_name }},
+
+Thank you for reaching out about an internship{% if f.organisation %}, and for sharing your background at {{ f.organisation }}{% endif %}.
+{% if f.skills %}
+Your experience with {{ f.skills[:4] | join(", ") }} is relevant to the kind of work we do.
+{% endif %}
+
+To help us see where you could fit, could you send:
+- a short walkthrough of a project you have built
+{% if "hours_per_week" in missing or not f.hours_per_week %}
+- how many hours a week you could give remotely to start
+{% endif %}
+{% if "graduation_year" in missing %}
+- your expected graduation date
+{% endif %}
+{% if "phone" in missing %}
+- a phone number we can reach you on
+{% endif %}
+
+We will review it and get back to you.
+
+Best regards,
+[Your name]
+{{ org_name }}

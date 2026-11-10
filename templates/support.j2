@@ -1,0 +1,17 @@
+Hi {{ first_name }},
+
+Thanks for letting us know, and sorry for the trouble.
+{% if f.order_id %}
+We have logged this against {{ f.order_id }} and someone from the team is looking into it.
+{% else %}
+So we can find your account quickly, could you reply with your order or ticket number?
+{% endif %}
+
+If you can, please also send:
+- what you expected to happen and what happened instead
+- roughly when it started
+- a screenshot of any error message
+
+Best regards,
+[Your name]
+{{ org_name }} Support

@@ -1,0 +1,132 @@
+"""The orchestrator: runs every stage in order and records what happened.
+
+    parse -> classify -> extract -> validate -> decide status -> draft -> store
+
+One bad email never stops the run: it is caught, logged as a failure and
+the rest of the inbox carries on.
+"""
+
+from __future__ import annotations
+
+import logging
+import time
+import uuid
+from collections import Counter, defaultdict
+from datetime import datetime, timezone
+from pathlib import Path
+
+from . import ai_classifier, classifier, drafter, extractor, parser, validator
+from .models import Category, ProcessedEmail, RunReport, Status
+from .storage import Store
+
+log = logging.getLogger(__name__)
+
+
+def decide_status(category: Category, issues, is_duplicate: bool) -> Status:
+    """The routing rule, in one place, in priority order."""
+    if is_duplicate:
+        return Status.DUPLICATE
+    if category == Category.SPAM:
+        return Status.DISCARDED
+    if validator.has_blocking_issue(issues):
+        return Status.NEEDS_ATTENTION
+    return Status.READY_FOR_REVIEW
+
+
+class Timer:
+    """Adds up the time spent in each stage across the whole run."""
+
+    def __init__(self):
+        self.totals: dict[str, float] = defaultdict(float)
+
+    def __call__(self, stage: str):
+        timer = self
+
+        class _Ctx:
+            def __enter__(self):
+                self.t0 = time.perf_counter()
+
+            def __exit__(self, *exc):
+                timer.totals[stage] += (time.perf_counter() - self.t0) * 1000
+
+        return _Ctx()
+
+
+def run(inbox_dir: Path, store: Store, use_ai: bool = False) -> RunReport:
+    started = datetime.now(timezone.utc)
+    t0 = time.perf_counter()
+    run_id = started.strftime("%Y%m%dT%H%M%S") + "-" + uuid.uuid4().hex[:6]
+    timer = Timer()
+    ai_on = use_ai and ai_classifier.is_available()
+
+    known = store.known_fingerprints()      # processed in earlier runs
+    seen_this_run: set[str] = set()         # processed earlier in this run
+    senders_seen: dict[str, str] = {}       # sender -> first fingerprint
+    order_ids_seen: dict[str, str] = {}     # order/ticket ID -> first file
+    results: list[ProcessedEmail] = []
+    failures: list[str] = []
+
+    for path in parser.load_inbox(inbox_dir):
+        try:
+            with timer("1_parse"):
+                raw = parser.parse_file(path)
+
+            with timer("2_classify"):
+                cls = classifier.classify(raw)
+                if ai_on:
+                    ai_cls = ai_classifier.classify_with_ai(raw)
+                    if ai_cls is not None:
+                        if ai_cls.category != cls.category:
+                            ai_cls.reasons.append(f"rules said '{cls.category.value}' ({cls.confidence:.0%})")
+                        ai_cls.scores = cls.scores
+                        cls = ai_cls
+
+            with timer("3_extract"):
+                fields = extractor.extract(raw, cls.category)
+
+            with timer("4_validate"):
+                issues = validator.validate(
+                    raw, cls, fields,
+                    {"senders_seen": senders_seen, "order_ids_seen": order_ids_seen},
+                )
+                is_dup = raw.fingerprint in known or raw.fingerprint in seen_this_run
+                status = decide_status(cls.category, issues, is_dup)
+
+            with timer("6_draft"):
+                reply = None
+                if status in (Status.READY_FOR_REVIEW, Status.NEEDS_ATTENTION):
+                    reply = drafter.draft(raw, cls.category, fields, issues)
+
+            seen_this_run.add(raw.fingerprint)
+            senders_seen.setdefault(raw.sender_email, raw.fingerprint)
+            if fields.order_id:
+                order_ids_seen.setdefault(fields.order_id, raw.source_file)
+            results.append(ProcessedEmail(
+                raw=raw, classification=cls, fields=fields,
+                issues=issues, status=status, draft_reply=reply,
+            ))
+        except Exception as exc:  # one broken file must not stop the run
+            log.exception("failed on %s", path.name)
+            failures.append(f"{path.name}: {type(exc).__name__}: {exc}")
+
+    finished = datetime.now(timezone.utc)
+    report = RunReport(
+        run_id=run_id,
+        started_at=started,
+        finished_at=finished,
+        duration_ms=int((time.perf_counter() - t0) * 1000),
+        total=len(results),
+        new_records=0,
+        by_status=dict(Counter(r.status.value for r in results)),
+        by_category=dict(Counter(r.classification.category.value for r in results)),
+        issue_count=sum(len(r.issues) for r in results),
+        ai_used=ai_on,
+        stage_timings_ms={k: round(v, 2) for k, v in sorted(timer.totals.items())},
+        failures=failures,
+        results=results,
+    )
+
+    with timer("5_store"):
+        report.new_records = store.save_run(report, results)
+    report.stage_timings_ms = {k: round(v, 2) for k, v in sorted(timer.totals.items())}
+    return report

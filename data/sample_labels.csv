@@ -1,0 +1,31 @@
+file,expected_category,expected_status,note
+01_internship_complete.eml,internship,ready_for_review,clean complete enquiry
+02_internship_gmail_sparse.eml,internship,ready_for_review,personal email; missing grad year and phone
+03_internship_past_grad.eml,internship,ready_for_review,graduation year in the past
+04_internship_html_only.eml,internship,ready_for_review,HTML-only email
+05_internship_duplicate_resend.eml,internship,duplicate,exact resend of 01
+06_internship_followup.eml,internship,ready_for_review,follow-up from same sender as 02
+07_internship_bad_phone.eml,internship,ready_for_review,phone number has 9 digits
+08_internship_two_addresses.eml,internship,ready_for_review,asks for reply to a different address
+09_sales_clinic.eml,sales_lead,ready_for_review,clear lead with budget
+10_sales_logistics_freemail.eml,sales_lead,ready_for_review,business lead from gmail
+11_sales_retail_demo.eml,sales_lead,ready_for_review,demo request with USD budget
+12_sales_missing_org.eml,sales_lead,needs_attention,no company name
+13_support_with_order.eml,support,ready_for_review,support with order id
+14_support_no_order.eml,support,needs_attention,support without order id
+15_support_ticket.eml,support,ready_for_review,support with ticket id
+16_vendor_seo.eml,vendor,ready_for_review,SEO pitch
+17_vendor_outsourcing.eml,vendor,ready_for_review,outsourcing pitch that mentions automation
+18_spam_lottery.eml,spam,discarded,lottery scam
+19_spam_crypto.eml,spam,discarded,crypto scheme
+20_spam_phishing.eml,spam,discarded,credential phishing
+21_unknown_vague.eml,unknown,needs_attention,too vague to classify
+22_empty_body.eml,unknown,needs_attention,empty body
+23_ambiguous_student_quote.eml,unknown,needs_attention,genuinely mixed: student pricing request plus internship
+24_support_forwarded_thread.eml,support,ready_for_review,forwarded thread about same order as 13
+25_sales_detailed.eml,sales_lead,ready_for_review,detailed proposal request
+26_internship_mixed_language.eml,internship,ready_for_review,Hindi-English mixed
+27_vendor_partnership.eml,vendor,ready_for_review,reseller partnership pitch
+28_sales_subject_only.eml,sales_lead,ready_for_review,request is only in the subject line
+29_support_refund.eml,support,ready_for_review,refund request with invoice id
+30_internship_class_of.eml,internship,ready_for_review,uses 'class of 2027'

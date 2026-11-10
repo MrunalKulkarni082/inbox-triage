@@ -1,0 +1,30 @@
+From: Karan Gill <karan.gill@nsis.ac.in>
+To: hello@example-automation.co
+Subject: Internship application
+Date: Thu, 01 Oct 2026 17:00:00 +0530
+Message-ID:
+ <179430885399.53948.2355994494181638955.04_internship_html_only@sample.local>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="===============5216824885974850152=="
+
+--===============5216824885974850152==
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+
+<html><body><p>Dear Hiring Team,</p>
+<p>I am a <b>master's student</b> at the National School of Inference Science=
+s and would like to apply for an <b>internship</b>. I expect to graduate in 2=
+027.</p>
+<p>Skills: Python, Pandas, SQL, Machine Learning, Docker.</p>
+<p>I can commit 20 hours per week. My CV is attached.</p>
+<p>Regards,<br>Karan Gill<br>Phone: +91 91234 56789</p></body></html>
+
+--===============5216824885974850152==
+Content-Type: application/pdf
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="Karan_Gill_CV.pdf"
+MIME-Version: 1.0
+
+JVBERi0xLjQgc2FtcGxlIGZpbGUK
+
+--===============5216824885974850152==--

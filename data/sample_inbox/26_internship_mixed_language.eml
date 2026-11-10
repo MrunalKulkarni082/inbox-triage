@@ -1,0 +1,31 @@
+From: Pooja Yadav <pooja.yadav@nsis.ac.in>
+To: hello@example-automation.co
+Subject: Internship ke liye request
+Date: Tue, 06 Oct 2026 19:00:00 +0530
+Message-ID: <179430885402.53948.5393374960844617351.26_internship_mixed_language@sample.local>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="===============8006089978664506594=="
+
+--===============8006089978664506594==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+
+Namaste,
+
+Main National School of Inference Sciences mein M.Sc ki student hoon, aur mai=
+n ek internship dhoond rahi hoon. Mujhe Python aur Excel aata hai. I expect t=
+o graduate in 2027. CV attach kar diya hai.
+
+Dhanyavaad,
+Pooja Yadav
+Phone: +91 94444 55566
+
+--===============8006089978664506594==
+Content-Type: application/pdf
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="Pooja_Yadav_CV.pdf"
+MIME-Version: 1.0
+
+JVBERi0xLjQgc2FtcGxlIGZpbGUK
+
+--===============8006089978664506594==--
