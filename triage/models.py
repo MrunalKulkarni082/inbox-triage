@@ -91,6 +91,10 @@ class ProcessedEmail(BaseModel):
     issues: list[ValidationIssue] = Field(default_factory=list)
     status: Status
     draft_reply: str | None = None
+    # Optional second opinion from an open-source LLM, kept for side-by-side display.
+    rules_classification: Classification | None = None
+    ai_classification: Classification | None = None
+    ai_note: str | None = None
 
 
 class RunReport(BaseModel):

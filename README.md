@@ -16,7 +16,7 @@ The demo has two modes:
 | **Language** | Python 3.12 |
 | **Stack** | Pydantic · SQLite (SQL) · pandas · Jinja2 · Streamlit · pytest · optional Claude API |
 | **Sample data** | 30 fictional emails, deliberately messy |
-| **Tests** | 63 automated tests (unit + end-to-end) |
+| **Tests** | 83 automated tests (unit + end-to-end) |
 | **Run time** | ~0.1 s for 30 emails on a laptop |
 
 ---
@@ -373,7 +373,7 @@ Three emails are deliberately labelled `unknown` because a person *should* decid
 ## 8. How it is tested
 
 ```bash
-pytest -q        # 63 passed in ~1.5 s
+pytest -q        # 83 passed in ~2 s
 ```
 
 | Test file | What it checks |
@@ -387,19 +387,43 @@ pytest -q        # 63 passed in ~1.5 s
 
 The AI tests replace the API call with a stand-in function, so **the test suite never calls a paid API** and runs offline.
 
-## 9. The optional AI step
+## 9. The AI second opinion: a free open-source LLM
 
-`triage/ai_classifier.py` can classify emails with Claude (Anthropic's model) instead of the rules.
+`triage/llm_classifier.py` asks a **free, open-source LLM on a hosted server** for a second opinion, with **no API key, no account and no cost**.
 
-How it is made safe:
+| | |
+|---|---|
+| Provider | OVHcloud AI Endpoints, anonymous free tier (found through [awesome-free-llm-apis](https://github.com/mnfst/awesome-free-llm-apis)) |
+| Models | Open-weight: `gpt-oss-120b`, `Llama-3.3-70B`, `gpt-oss-20b`, `Mistral-Small-3.2-24B`, `Qwen3.8-27B` |
+| API | Standard OpenAI-compatible `/chat/completions`, so any similar provider (Groq, NVIDIA NIM, OpenRouter...) works by setting `TRIAGE_LLM_BASE_URL`, `TRIAGE_LLM_API_KEY` and `TRIAGE_LLM_MODELS` |
+| Free limit | About 2 requests per minute **per model** per IP address |
+| Works in the browser demo | Yes: the provider allows browser calls (CORS), so the public page calls it directly from the visitor's browser, with no server and no hidden key |
 
-- **Off by default.** It only runs with `--ai` (or the toggle in the demo) **and** when `ANTHROPIC_API_KEY` is set.
-- **Structured output.** The model must return a JSON object matching a Pydantic schema (`category`, `confidence`, `reasons`). The SDK validates it; a malformed answer cannot reach the database.
-- **Prompt-injection aware.** The email body is wrapped in `<email_body>` tags, and the system prompt says the email is data to classify, not instructions to follow. An email that says "ignore previous instructions" stays an email.
-- **Always falls back to rules.** No key, network error, rate limit, API error, a refused request, or AI confidence below 60% → the rule-based result is used. The AI can improve an answer but can never break a run.
-- **Disagreement is recorded.** If the AI and the rules disagree, the reasons list says so (`rules said 'internship' (71%)`). This is useful for finding where the rules need work.
+**How it is used**
 
-The model is set by `TRIAGE_AI_MODEL` (default `claude-opus-5-5`) with low reasoning effort, since classifying a short email is a simple task.
+- **Live email check:** on by default. Rules and LLM run **side by side** and the page shows both answers.
+- **Whole inbox:** optional, and only for emails the rules were **unsure** about (`--open-llm uncertain`). That keeps within the free limit, and it is the cost-aware pattern a real deployment would use: cheap rules first, the model only where it adds value.
+
+**How the two answers are combined** (`combine()` in `triage/pipeline.py`):
+
+| Situation | Decision |
+|---|---|
+| AI failed, busy, or below 60% confident | Rules decide |
+| Both agree | Agreed category, with the higher confidence |
+| Rules unsure (`unknown`), AI confident | AI's answer is used; this is where it helps most |
+| **Both confident but disagree** | Rules' answer is kept **and the email goes to a person** (a blocking validation issue) |
+
+**How it is made safe**
+
+- **The rate limit is handled up front.** The client tracks its own calls and moves to the next model when one is at its limit or returns HTTP 429, which gives about 10 requests per minute in total.
+- **Answers are validated.** The reply must contain a JSON object with a known category and a confidence between 0 and 1 (Pydantic). It tolerates common model habits (code fences, `"85%"`, `<think>` blocks) and rejects anything else.
+- **Prompt-injection aware.** The email is wrapped in `<email>` tags and the system prompt says it is data, never instructions.
+- **Never breaks a run.** Network errors, timeouts, rate limits or bad answers return a plain note ("no usable AI answer…"), and the rules answer stands. The tests simulate every one of these without making any real calls.
+- **Privacy caveat, stated in the demo.** Anonymous free endpoints receive the email text. That is fine for demo data. A client deployment would use a contracted provider or a self-hosted model; with the OpenAI-compatible design, that is a configuration change, not a rewrite.
+
+**First real results.** On the 8 live-demo examples (new emails, not the tuning set), the free models agreed with the rules on **8 of 8**, and were more confident (for example support 90-92% where the rules gave 65-69%). Answers took 1.3-12 s, plus one 33 s outlier. When a model was at its limit, the client moved on to the next one, so answers came from gpt-oss-120b, Llama 3.3 70B, gpt-oss-20b and Qwen. A full comparison on all 38 labelled emails can be run with `python scripts/compare_llm.py` (about 5 minutes because of the free rate limit); it writes `output/llm_comparison.csv`.
+
+**Also available: Claude.** `triage/ai_classifier.py` can use Anthropic's Claude instead (`--ai`, needs `ANTHROPIC_API_KEY`), with structured output and the same fall-back-to-rules design.
 
 ## 10. Design decisions and trade-offs
 
@@ -457,7 +481,7 @@ inbox-triage/
 │   └── sample_labels.csv          Expected category and outcome for each
 ├── scripts/
 │   └── generate_sample_inbox.py   Rebuilds the sample inbox
-└── tests/                         63 tests (unit + end-to-end)
+└── tests/                         83 tests (unit + end-to-end)
 ```
 
 About 2,400 lines of Python, including tests and sample data.
@@ -488,12 +512,12 @@ A suggested 6-minute flow:
 4. **One email end to end (90 s).** In **Step-by-step inspector**, choose `01_internship_complete.eml`: the signals and scores, the confidence formula, the extracted fields, no issues, the draft. Then choose `23_ambiguous_student_quote.eml` and show why it was sent to a person.
 5. **Data quality (60 s).** Open **Exceptions**: the 9-digit phone number, the graduate applying as a student, the support email with no order number, the forwarded thread linked to the original order.
 6. **Human in the loop (30 s).** In **Review queue**, edit and approve a draft; show it in the `reviews` table in **Database**.
-7. **Reliability (30 s).** Press **Run** again: 0 new records. Mention the 63 tests, the corrupt-file test and the AI fallback.
+7. **Reliability (30 s).** Press **Run** again: 0 new records. Mention the 83 tests, the corrupt-file test and the AI fallback.
 8. **Honesty and next steps (30 s).** "Accuracy is 100% on the sample, but I tuned the rules on it, so the real test is unseen email. Next I would measure on real mail, then connect a mailbox and add follow-ups."
 
 Likely questions, with short answers:
 
 - *Why not just use ChatGPT/Claude for everything?* Cost, speed, repeatability and explainability. The AI is available as an optional step, and the rules are the fallback, so the system still works when the API does not.
 - *How would this run for a real client?* A mailbox connector instead of `.eml` files, a scheduler, PostgreSQL instead of SQLite, and drafts saved into the real mailbox.
-- *How do you know it works?* 63 tests, labelled expected answers for every sample email, and an end-to-end test that compares every category and outcome against those labels.
+- *How do you know it works?* 83 tests, labelled expected answers for every sample email, and an end-to-end test that compares every category and outcome against those labels.
 - *What was hardest?* Deciding what counts as a problem versus missing-but-fine (errors vs. warnings), and stopping the extractor from guessing; for example, dates looked like phone numbers until a specific rule and test were added.

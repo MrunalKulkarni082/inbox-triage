@@ -70,11 +70,25 @@ with st.sidebar:
             uploads = st.file_uploader("Drop .eml files", type=["eml"], accept_multiple_files=True)
             st.caption("Files are processed in memory for this session only.")
 
+    st.markdown("**🤖 Open-source AI second opinion**")
+    if mode == LIVE_MODE:
+        llm_on = st.toggle("Ask a free open-source LLM too", value=True,
+                           help="gpt-oss-120b and other open-weight models on OVHcloud's free, "
+                                "no-key tier. If it fails or is busy, the rules answer stands.")
+        open_llm = "all" if llm_on else "off"
+    else:
+        llm_on = st.toggle("Ask the LLM about emails the rules are unsure of", value=False,
+                           help="Only 'unknown' emails are sent, which keeps within the free "
+                                "limit of roughly 10 requests per minute.")
+        open_llm = "uncertain" if llm_on else "off"
+    st.caption("Free, no API key: open-weight models (gpt-oss, Llama, Mistral, Qwen) on "
+               "OVHcloud AI Endpoints. The email text is sent to that server, so don't paste "
+               "confidential emails.")
+
     ai_ready = ai_classifier.is_available()
-    use_ai = st.toggle("Use AI classification (Claude)", value=False, disabled=not ai_ready,
-                       help="Needs ANTHROPIC_API_KEY. Falls back to rules on any failure.")
-    if not ai_ready:
-        st.caption("AI is off: no API key configured. The rule-based classifier is used.")
+    use_ai = False
+    if ai_ready:  # only shown when an Anthropic key is configured on the machine
+        use_ai = st.toggle("Use Claude instead of rules", value=False)
 
     if mode == INBOX_MODE:
         run_clicked = st.button("▶ Run workflow", type="primary", width="stretch")
@@ -96,7 +110,7 @@ if run_clicked:
     else:
         inbox = SAMPLE_INBOX
     with st.spinner("Processing inbox..."):
-        st.session_state.report = pipeline.run(inbox, store, use_ai=use_ai)
+        st.session_state.report = pipeline.run(inbox, store, use_ai=use_ai, open_llm=open_llm)
         st.session_state.reports.append(st.session_state.report)
         st.session_state.inbox_is_sample = inbox == SAMPLE_INBOX
 
@@ -132,6 +146,30 @@ def show_trace(r) -> None:
 
     st.markdown("#### 2 · Classify")
     c = r.classification
+    if r.ai_note:
+        rc, ac = r.rules_classification, r.ai_classification
+        left, right = st.columns(2)
+        with left:
+            st.markdown("**📏 Rules** (instant, explainable)")
+            st.markdown(f"`{rc.category.value}` · {rc.confidence:.0%}")
+        with right:
+            st.markdown("**🤖 Open-source LLM**")
+            if ac:
+                st.markdown(f"`{ac.category.value}` · {ac.confidence:.0%} · `{ac.method.removeprefix('llm:')}`")
+                for reason in ac.reasons:
+                    st.caption(f"• {reason}")
+            st.caption(r.ai_note)
+        if ac is None:
+            st.warning("No AI answer this time, so the rules decided. That is the fallback working as designed.")
+        elif ac.category == rc.category:
+            st.success(f"Rules and AI agree: **{ac.category.value}**.")
+        elif rc.category.value == "unknown":
+            st.info(f"The rules were unsure; the AI's answer **{ac.category.value}** was used.")
+        elif ac.confidence < 0.6:
+            st.info("The AI was not confident enough, so the rules decided.")
+        else:
+            st.error("Rules and AI disagree, so the email is sent to a person to decide.")
+        st.markdown("**Final decision**")
     st.markdown(f"**{c.category.value}** with **{c.confidence:.0%}** confidence (method: `{c.method}`)")
     if c.scores:
         st.bar_chart(pd.Series(c.scores, name="signal score"), horizontal=True)
@@ -223,7 +261,8 @@ if mode == LIVE_MODE:
                 st.session_state.live_name.strip(), sender or "unknown@unknown.invalid", subject, body,
                 [x.strip() for x in st.session_state.live_attach.split(",") if x.strip()],
             )
-            rep = pipeline.run_single(raw, get_store(), use_ai=use_ai)
+            with st.spinner("Checking..." + (" (asking the open-source LLM, usually 2-10 s)" if open_llm != "off" else "")):
+                rep = pipeline.run_single(raw, get_store(), use_ai=use_ai, open_llm=open_llm)
             if rep.failures:
                 st.error("Could not process this email: " + "; ".join(rep.failures))
             else:

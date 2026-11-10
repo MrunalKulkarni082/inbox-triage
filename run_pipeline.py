@@ -3,6 +3,7 @@
     python run_pipeline.py                      # process the sample inbox
     python run_pipeline.py --inbox path/to/eml  # process your own .eml folder
     python run_pipeline.py --ai                 # use Claude if ANTHROPIC_API_KEY is set
+    python run_pipeline.py --open-llm uncertain # free open-source LLM for emails the rules are unsure of
     python run_pipeline.py --reset              # start with an empty database
 
 Outputs (in ./output):
@@ -33,6 +34,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--inbox", type=Path, default=ROOT / "data" / "sample_inbox")
     ap.add_argument("--out", type=Path, default=ROOT / "output")
     ap.add_argument("--ai", action="store_true", help="use Claude for classification (falls back to rules)")
+    ap.add_argument("--open-llm", choices=["off", "uncertain", "all"], default="off",
+                    help="ask a free open-source LLM (no key needed): only about emails the rules are unsure of, "
+                         "or about all of them (slow: free tier allows ~10 requests/minute)")
     ap.add_argument("--reset", action="store_true", help="delete the database first")
     args = ap.parse_args(argv)
 
@@ -46,7 +50,7 @@ def main(argv: list[str] | None = None) -> int:
         db_path.unlink()
 
     store = Store(db_path)
-    report = pipeline.run(args.inbox, store, use_ai=args.ai)
+    report = pipeline.run(args.inbox, store, use_ai=args.ai, open_llm=args.open_llm)
 
     # ---- console summary ---------------------------------------------------
     print(f"\nRun {report.run_id}  |  {report.total} emails  |  {report.new_records} new  |  "
