@@ -4,6 +4,8 @@ A small, end-to-end workflow automation that turns a messy shared inbox into **c
 
 It reads incoming emails, works out what each one is (internship enquiry, sales lead, support request, vendor pitch or spam), pulls out the useful details, checks them for problems, saves everything to a SQL database and drafts a reply. A person approves every reply. Nothing is sent automatically.
 
+**▶ Live demo: <https://mrunalkulkarni082.github.io/inbox-triage/>**: runs entirely in your browser, with no sign-up. The first load takes about 20–40 seconds while Python starts up.
+
 | | |
 |---|---|
 | **Language** | Python 3.12 |
@@ -455,7 +457,11 @@ About 2,400 lines of Python, including tests and sample data.
 
 ## 14. Deploying the demo
 
-The demo runs free on **Streamlit Community Cloud**:
+**Current live demo: GitHub Pages + stlite.** `index.html` loads [stlite](https://github.com/whitphx/stlite), which is Streamlit compiled to WebAssembly, and runs `app.py` and the whole `triage` package **inside the visitor's browser** with Pyodide. There is no server: GitHub Pages only serves the files. Emails a visitor uploads never leave their device.
+
+After changing any app file, run `python scripts/build_web_demo.py` to regenerate `index.html`, then push. GitHub Pages is set to serve the `main` branch root.
+
+**Alternative: Streamlit Community Cloud** (server-hosted; faster first load, but the app sleeps when unused):
 
 1. Push this folder to a public GitHub repository.
 2. Go to <https://share.streamlit.io>, sign in with GitHub, and choose **Create app**.
